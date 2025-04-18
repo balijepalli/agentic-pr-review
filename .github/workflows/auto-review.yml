@@ -1,0 +1,37 @@
+name: Automated First PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  auto_review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Python
+        run: sudo apt-get install python3
+
+      - name: Fetch PR diff
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -H "Authorization: token $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3.diff" \
+               "${{ github.event.pull_request.url }}" > pr.diff
+
+      - name: Run hardcoded review agent
+        run: python3 review_rules.py
+
+      - name: Comment on PR with review suggestions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMENT=$(python3 review_rules.py | tail -n +2 | sed ':a;N;$!ba;s/\n/\\n/g')
+          curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            -X POST \
+            -d "{\"body\": \"${COMMENT}\"}" \
+            https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments
