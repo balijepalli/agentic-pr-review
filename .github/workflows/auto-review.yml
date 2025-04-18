@@ -1,4 +1,4 @@
-name: Automated First PR Review
+name: GPT-Based Agentic PR Review
 
 on:
   pull_request:
@@ -12,8 +12,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install Python
-        run: sudo apt-get install python3
+      - name: Install OpenAI Python package
+        run: pip install openai
 
       - name: Fetch PR diff
         env:
@@ -23,14 +23,17 @@ jobs:
                -H "Accept: application/vnd.github.v3.diff" \
                "${{ github.event.pull_request.url }}" > pr.diff
 
-      - name: Run hardcoded review agent
-        run: python3 review_rules.py
+      - name: Run GPT agentic reviewer
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python3 gpt_review_agent.py
 
-      - name: Comment on PR with review suggestions
+      - name: Comment on PR with GPT review
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
-          COMMENT=$(python3 review_rules.py | tail -n +2 | sed ':a;N;$!ba;s/\n/\\n/g')
+          COMMENT=$(python3 gpt_review_agent.py | tail -n +2 | sed ':a;N;$!ba;s/\n/\\n/g')
           curl -s -H "Authorization: token $GITHUB_TOKEN" \
             -X POST \
             -d "{\"body\": \"${COMMENT}\"}" \
